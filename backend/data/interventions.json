@@ -1,0 +1,206 @@
+[
+  {
+    "id": "INT-COVER-CROPS",
+    "name": "Cover crops",
+    "category": "cover_crops",
+    "applicable_ecosystems": ["agricultural"],
+    "applicable_biomes": ["semi-arid", "arid", "temperate-grassland", "mediterranean", "humid-subtropical"],
+    "target_constraints": ["low_soc", "soil_erosion", "microbial_starvation", "soil_compaction"],
+    "action": "Establish non-cash cover crops (such as legumes, grasses, or brassicas) during fallow or inter-row periods to maintain living ground cover.",
+    "mechanism": "Living roots maintain rhizosphere microbial activity and mycorrhizal networks throughout the year, reduce raindrop impact detachment, and cycle organic matter into topsoil.",
+    "impacted_metrics": [
+      {
+        "metric_name": "Soil Organic Carbon",
+        "causal_mechanism": "Continuous living root exudates and plant biomass cycle active carbon into topsoil horizons."
+      },
+      {
+        "metric_name": "Soil Erosion Control",
+        "causal_mechanism": "Vegetative canopy and surface roots intercept raindrops and physically anchor topsoil."
+      },
+      {
+        "metric_name": "Soil Microbial Biomass",
+        "causal_mechanism": "Rhizosphere root exudation supports bacterial and mycorrhizal fungal populations."
+      }
+    ],
+    "time_horizon": "Short to Medium-Term (1 - 3 years)",
+    "confidence": {
+      "score": 0.92,
+      "label": "High Confidence",
+      "basis": "FAO Global Soil Partnership, CSIRO dryland reviews"
+    },
+    "trade_offs": [
+      "In water-limited environments (<350 mm annual precipitation), terminate cover crops early to avoid excessive soil moisture depletion before cash crop sowing."
+    ],
+    "evidence_ids": ["FAO-SOIL-CARBON-2019", "CSIRO-DRYLAND-COVER-2021"]
+  },
+  {
+    "id": "INT-FIELD-MARGINS",
+    "name": "Field margins",
+    "category": "field_margins",
+    "applicable_ecosystems": ["agricultural"],
+    "applicable_biomes": ["semi-arid", "arid", "temperate-grassland", "mediterranean", "humid-subtropical"],
+    "target_constraints": ["biodiversity_loss", "pollinator_decline", "pest_pressure", "wind_erosion"],
+    "action": "Establish uncropped perennial vegetation buffers, native flowering hedgerows, and grass strips along parcel boundaries and field borders.",
+    "mechanism": "Permanent field margins provide undisturbed nesting habitat and alternative floral resources for native pollinators and predatory beneficial arthropods, suppressing pest outbreaks naturally.",
+    "impacted_metrics": [
+      {
+        "metric_name": "Pollinator Abundance",
+        "causal_mechanism": "Permanent floral resources and undisturbed ground nesting habitat support wild pollinators."
+      },
+      {
+        "metric_name": "Natural Pest Suppression",
+        "causal_mechanism": "Perennial vegetation provides refugia for predatory arthropods and beneficial insects."
+      },
+      {
+        "metric_name": "Landscape Connectivity",
+        "causal_mechanism": "Linear border vegetation creates wildlife movement corridors across fragmented agricultural matrix."
+      }
+    ],
+    "time_horizon": "Medium-Term (2 - 4 years)",
+    "confidence": {
+      "score": 0.90,
+      "label": "High Confidence",
+      "basis": "IPBES Assessment, Nature Ecology meta-analyses"
+    },
+    "trade_offs": [
+      "Takes a minor percentage of field border area out of direct crop production; requires monitoring for weed encroachment."
+    ],
+    "evidence_ids": ["IPBES-LADA-2018", "SCIENCE-POLLINATOR-2020"]
+  },
+  {
+    "id": "INT-CROP-ROTATION",
+    "name": "Crop rotation",
+    "category": "crop_rotation",
+    "applicable_ecosystems": ["agricultural"],
+    "applicable_biomes": ["semi-arid", "arid", "temperate-grassland", "mediterranean", "humid-subtropical"],
+    "target_constraints": ["monoculture_homogenization", "nutrient_depletion", "pest_buildup", "soil_degradation"],
+    "action": "Diversify single-crop systems by alternating cereal crops with pulses, oilseeds, or deep-rooting species across successive seasons.",
+    "mechanism": "Varying root architectures and root exudates disrupt pest and disease cycles, optimize nutrient uptake from distinct soil layers, and enhance biological diversity.",
+    "impacted_metrics": [
+      {
+        "metric_name": "Soil Health & Nutrient Balance",
+        "causal_mechanism": "Alternating functional plant types diversifies root exudates and reduces nutrient exhaustion."
+      },
+      {
+        "metric_name": "Pest & Pathogen Break",
+        "causal_mechanism": "Non-host rotational crops break species-specific weed, pest, and disease reproductive cycles."
+      },
+      {
+        "metric_name": "Systemic Resilience",
+        "causal_mechanism": "Diverse cropping profiles mitigate climatic and economic risks compared to monoculture."
+      }
+    ],
+    "time_horizon": "Short to Medium-Term (1 - 3 seasons)",
+    "confidence": {
+      "score": 0.94,
+      "label": "High Confidence",
+      "basis": "FAO and ICRISAT long-term trial meta-analyses"
+    },
+    "trade_offs": [
+      "Requires market access and suitable harvesting or processing equipment for rotational crops."
+    ],
+    "evidence_ids": ["FAO-SOIL-CARBON-2019", "ICRISAT-SEMIARID-2022"]
+  },
+  {
+    "id": "INT-RESIDUE-RETENTION",
+    "name": "Residue retention",
+    "category": "residue_retention",
+    "applicable_ecosystems": ["agricultural"],
+    "applicable_biomes": ["semi-arid", "arid", "temperate-grassland", "mediterranean", "humid-subtropical"],
+    "target_constraints": ["soil_moisture_loss", "heat_stress", "wind_erosion", "low_soc"],
+    "action": "Leave crop stubble and plant residues on the field surface after harvest rather than burning, removing, or burying them.",
+    "mechanism": "Surface residue creates a physical mulch barrier that buffers soil temperature extremes, suppresses evaporative moisture loss, and shields soil aggregates from wind and water erosion.",
+    "impacted_metrics": [
+      {
+        "metric_name": "Soil Moisture Retention",
+        "causal_mechanism": "Surface mulch reduces direct solar radiation on soil, lowering evaporative water loss."
+      },
+      {
+        "metric_name": "Topsoil Thermal Buffering",
+        "causal_mechanism": "Stubble blanket dampens peak daytime topsoil temperatures, protecting surface biology."
+      },
+      {
+        "metric_name": "Erosion Mitigation",
+        "causal_mechanism": "Residue protects surface aggregates from kinetic raindrop impact and wind detachment."
+      }
+    ],
+    "time_horizon": "Immediate to Short-Term (1 - 2 seasons)",
+    "confidence": {
+      "score": 0.91,
+      "label": "High Confidence",
+      "basis": "IPCC Climate Change and Land, FAO Conservation Agriculture"
+    },
+    "trade_offs": [
+      "Heavy residue may interfere with standard seed drills if specialized seeders are unavailable; can harbor crop-specific fungal residues if not rotated."
+    ],
+    "evidence_ids": ["IPCC-SRCCL-2019-CH04", "FAO-SOLAW-2021"]
+  },
+  {
+    "id": "INT-AGROFORESTRY",
+    "name": "Agroforestry",
+    "category": "agroforestry",
+    "applicable_ecosystems": ["agricultural"],
+    "applicable_biomes": ["semi-arid", "arid", "temperate-grassland", "mediterranean", "humid-subtropical"],
+    "target_constraints": ["microclimate_stress", "wind_erosion", "low_soc", "habitat_homogenization"],
+    "action": "Integrate multipurpose perennial woody species and shelterbelts alongside seasonal crops at appropriate spatial configurations.",
+    "mechanism": "Tree canopies reduce near-surface wind speeds and evaporative demand, while deep perennial root systems access subsoil moisture and nutrients, recycling organic matter via litterfall.",
+    "impacted_metrics": [
+      {
+        "metric_name": "Microclimatic Buffering",
+        "causal_mechanism": "Perennial boundary trees slow near-surface wind speeds and dampen vapor pressure deficit."
+      },
+      {
+        "metric_name": "Deep Carbon & Nutrient Cycling",
+        "causal_mechanism": "Deep roots capture subsoil nutrients, returning them to the topsoil through annual leaf litter."
+      },
+      {
+        "metric_name": "Structural Biodiversity",
+        "causal_mechanism": "Vertical woody canopy layers provide perches, nesting sites, and micro-refugia for native fauna."
+      }
+    ],
+    "time_horizon": "Medium to Long-Term (3 - 6 years)",
+    "confidence": {
+      "score": 0.92,
+      "label": "High Confidence",
+      "basis": "FAO Agroforestry guidelines, ICRAF global synthesis"
+    },
+    "trade_offs": [
+      "Requires multi-year investment before tree canopies mature; tree species must be selected to avoid light or moisture competition with companion crops."
+    ],
+    "evidence_ids": ["FAO-AGROFORESTRY-2021", "IPCC-AR6-WG2-ECOSYSTEMS-2022"]
+  },
+  {
+    "id": "INT-REDUCED-TILLAGE",
+    "name": "Reduced tillage",
+    "category": "reduced_tillage",
+    "applicable_ecosystems": ["agricultural"],
+    "applicable_biomes": ["semi-arid", "arid", "temperate-grassland", "mediterranean", "humid-subtropical"],
+    "target_constraints": ["soil_compaction", "organic_matter_oxidation", "erosion", "fuel_energy_costs"],
+    "action": "Minimize or eliminate mechanical inversion tillage (moldboard plowing) in favor of direct drilling, strip-till, or shallow non-inversion cultivation.",
+    "mechanism": "Avoiding soil inversion preserves soil pore architecture, earthworm channels, and fungal hyphae networks, reducing carbon oxidation and mitigating compaction.",
+    "impacted_metrics": [
+      {
+        "metric_name": "Soil Aggregate Integrity",
+        "causal_mechanism": "Undisturbed fungal hyphae and earthworm burrows maintain soil macropores and water infiltration."
+      },
+      {
+        "metric_name": "Soil Carbon Preservation",
+        "causal_mechanism": "Minimizing soil disturbance limits oxygen exposure, decreasing oxidative loss of organic matter."
+      },
+      {
+        "metric_name": "Operational Efficiency",
+        "causal_mechanism": "Fewer tractor passes reduce fossil fuel consumption and subsoil plow-pan compaction."
+      }
+    ],
+    "time_horizon": "Immediate to Medium-Term (1 - 3 years)",
+    "confidence": {
+      "score": 0.90,
+      "label": "High Confidence",
+      "basis": "FAO Conservation Agriculture, Global Soil Partnership"
+    },
+    "trade_offs": [
+      "Transition period (1-3 years) may require adjusted weed management strategies before soil biology establishes equilibrium."
+    ],
+    "evidence_ids": ["FAO-SOIL-CARBON-2019", "IPCC-SRCCL-2019-CH04"]
+  }
+]

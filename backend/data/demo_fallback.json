@@ -1,0 +1,19 @@
+{
+  "canonical_semi_arid_wheat": {
+    "query": "SOC 0.3%, low rainfall (320mm), monoculture wheat, semi-arid region. What interventions do you recommend?",
+    "input_profile": {
+      "biome": "semi-arid",
+      "soc_percent": 0.3,
+      "soc_source": "measured",
+      "rainfall_mm": 320.0,
+      "rainfall_source": "measured",
+      "pet_mm": 1200.0,
+      "current_crop": "monoculture wheat",
+      "ph": 7.4,
+      "ph_source": "measured"
+    },
+    "scientific_summary": "Diagnostic evaluation of the submitted environmental profile reveals an agroecosystem under acute compound stress. Soil Organic Carbon (SOC) at 0.30% is critically depleted relative to the regional semi-arid target of 1.50% (-80.0% deficit), dropping well beneath the biophysical threshold of 0.50% where soil microbial resilience and structural macroaggregation collapse. With mean annual precipitation of 320 mm against a potential evapotranspiration demand of ~1200 mm (Aridity Index AI = 0.267, high moisture stress), uninterrupted wheat monoculture exacerbates fine capillary moisture losses and accelerates wind erosion. Under these biophysical constraints, high-transpiration cover crops or deep plowing are prohibited due to acute risk of cash-crop water theft. We recommend a phased dual-tier strategy: (1) Dryland perimeter and parkland agroforestry featuring Faidherbia albida / Acacia shelterbelts to buffer wind shear and restore leaf litter carbon; coupled with (2) Strip intercropping with drought-tolerant legumes (Chickpea / Pigeonpea) with stubble mulch retention to fix biological nitrogen, stimulate arbuscular mycorrhizal networks, and arrest erosive topsoil loss.",
+    "recommendation_ids": ["INT-AGROFORESTRY-DRYLAND", "INT-LEGUME-INTERCROPPING", "INT-CONSERVATION-TILLAGE-MULCH"],
+    "evidence_ids": ["FAO-AGROFORESTRY-2021", "IPCC-SRCCL-2019-CH04", "NATURE-ECOL-2021-INTERCROP", "ISRIC-SOIL-CARBON-2020", "FAO-SOIL-EROSION-2019"]
+  }
+}

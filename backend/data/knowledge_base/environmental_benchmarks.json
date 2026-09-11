@@ -1,0 +1,89 @@
+{
+  "dataset_metadata": {
+    "title": "Global Agroecological Biome Benchmarks & Critical Ecological Thresholds",
+    "version": "2.1.0",
+    "sources": [
+      "FAO SOLAW 2021",
+      "IPCC SRCCL Chapter 4 (2019)",
+      "ISRIC World Soil Information 2020",
+      "IPBES Global Assessment 2019"
+    ],
+    "purpose": "Authoritative ecological threshold baselines for deterministic gating, deficit calculation, and RAG knowledge grounding."
+  },
+  "biomes": {
+    "semi-arid": {
+      "name": "Semi-Arid Dryland Agroecosystem",
+      "aridity_index_range": [0.20, 0.50],
+      "annual_rainfall_range_mm": [250, 500],
+      "typical_pet_mm": 1200,
+      "minimum_viable_soc_percent": 0.50,
+      "target_healthy_soc_percent": 1.50,
+      "critical_biodiversity_intactness_threshold": 0.55,
+      "primary_risks": [
+        "Capillary collapse below 0.5% SOC",
+        "Wind and splash erosion during bare fallow",
+        "Subsoil moisture competition under unmanaged cover crops"
+      ],
+      "approved_interventions": [
+        "dryland_parkland_agroforestry",
+        "cereal_legume_intercropping",
+        "conservation_tillage_mulching",
+        "early_terminated_pulse_cover"
+      ]
+    },
+    "arid": {
+      "name": "Arid Dryland & Desert Margin",
+      "aridity_index_range": [0.05, 0.20],
+      "annual_rainfall_range_mm": [100, 250],
+      "typical_pet_mm": 1600,
+      "minimum_viable_soc_percent": 0.30,
+      "target_healthy_soc_percent": 0.90,
+      "critical_biodiversity_intactness_threshold": 0.40,
+      "primary_risks": [
+        "Severe sand encroachment & soil crusting",
+        "Extreme high VPD vapor deficit"
+      ],
+      "approved_interventions": [
+        "native_drought_shrub_windbreaks",
+        "micro_water_harvesting_swales",
+        "halophyte_saline_restoration"
+      ]
+    },
+    "mediterranean": {
+      "name": "Mediterranean Basin / Winter Rain Dryland",
+      "aridity_index_range": [0.35, 0.65],
+      "annual_rainfall_range_mm": [350, 700],
+      "typical_pet_mm": 1100,
+      "minimum_viable_soc_percent": 0.80,
+      "target_healthy_soc_percent": 2.00,
+      "critical_biodiversity_intactness_threshold": 0.60,
+      "primary_risks": [
+        "Summer drought stress",
+        "Hillside water runoff erosion"
+      ],
+      "approved_interventions": [
+        "silvopastoral_olive_cereal_alley",
+        "winter_legume_intercrop",
+        "keyline_water_contouring"
+      ]
+    },
+    "temperate-grassland": {
+      "name": "Temperate Grassland / Cereal Steppe",
+      "aridity_index_range": [0.50, 0.75],
+      "annual_rainfall_range_mm": [450, 800],
+      "typical_pet_mm": 850,
+      "minimum_viable_soc_percent": 1.20,
+      "target_healthy_soc_percent": 3.00,
+      "critical_biodiversity_intactness_threshold": 0.65,
+      "primary_risks": [
+        "Deep compaction from heavy tillage machinery",
+        "Excessive nitrate leaching"
+      ],
+      "approved_interventions": [
+        "multi_species_cover_cocktails",
+        "rotational_holistic_grazing",
+        "perennial_strip_planting"
+      ]
+    }
+  }
+}
