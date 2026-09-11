@@ -255,17 +255,36 @@ class AuditDatabase:
             conn.commit()
 
     @classmethod
-    def get_session_chat_history(cls, session_id: str) -> List[Dict[str, Any]]:
-        """Retrieves chronological chat messages for a session."""
+    def get_session_chat_history(
+        cls,
+        session_id: str,
+        context_type: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """Retrieves chronological chat messages for a session.
+        
+        Args:
+            session_id: The session to load messages for.
+            context_type: Optional filter — e.g. 'followup' to only return
+                          conversational follow-up messages, excluding the
+                          initial 'assessment' and 'intake' entries.
+        """
         cls.initialize()
         with cls._get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("""
-            SELECT role, message_text, context_type, created_at
-            FROM chat_messages
-            WHERE session_id = ?
-            ORDER BY id ASC
-            """, (session_id,))
+            if context_type:
+                cursor.execute("""
+                SELECT role, message_text, context_type, created_at
+                FROM chat_messages
+                WHERE session_id = ? AND context_type = ?
+                ORDER BY id ASC
+                """, (session_id, context_type))
+            else:
+                cursor.execute("""
+                SELECT role, message_text, context_type, created_at
+                FROM chat_messages
+                WHERE session_id = ?
+                ORDER BY id ASC
+                """, (session_id,))
             rows = cursor.fetchall()
             return [
                 {

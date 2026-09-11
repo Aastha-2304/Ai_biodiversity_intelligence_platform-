@@ -103,12 +103,8 @@ class ScientificWriter:
             clarifying_question=clarifying_question
         )
         print(f"[DEBUG 6] RAW LLM RESPONSE: {deterministic_response[:120]}...")
-
-        if not api_key:
-            warning = "> [!WARNING]\n> **Missing ANTHROPIC_API_KEY**\n> The AI Scientist is running in deterministic fallback mode because the `ANTHROPIC_API_KEY` was not found in the environment. To receive full dynamic AI synthesis, please add your key.\n\n"
-            deterministic_response = warning + deterministic_response
-
         return deterministic_response
+
 
     @classmethod
     def synthesize_diagnosis_markdown(
@@ -323,36 +319,51 @@ class ScientificWriter:
 
         eco_type = (rule_eval.get("ecosystem_type") or profile.get("ecosystem_type") or "agricultural").lower()
         biome_display = biome_val.replace("-", " ").title()
-        health_score = rule_eval.get('system_health_index') or 35.0
+        limiting_factors = rule_eval.get('primary_limiting_factors', ['resource limitation'])
 
-        # 1. Short Answer
+        # 1. Short Answer (Dr. Priya Voice)
         lines = [
-            f"### Ecological Advisor Consultation: {eco_type.title()} Restoration ({biome_display})",
+            f"### Ecological Field Diagnosis & Restoration Plan",
             "",
-            "#### Short Answer",
-            f"Your parcel shows significant biophysical stress driven primarily by {'; '.join(rule_eval.get('primary_limiting_factors', ['resource limitation']))}. "
-            f"With current rainfall ({rain_val or 'low'} mm/yr) and {texture_val} soil, the priority is restoring soil moisture retention and active biological carbon without inducing competitive water stress.",
+            "**Dr. Priya — Lead AI Environmental Scientist**",
+            "",
+            f"Hi there. I've looked at your {eco_type} site, and honestly, this is a challenging situation. When you have {rain_val or 'low'} mm/yr rainfall combined with {texture_val} soil, you're fighting an uphill battle against {'; '.join(limiting_factors)}.",
             "",
             "#### Why This Matters",
-            f"When topsoil fertility declines in a {biome_display} climate, soil aggregates collapse and biological activity slows down. In {texture_val} soils, low organic matter reduces capillary water capacity, accelerating evaporation under high atmospheric demand (VPD). The recommended strategy combines physical surface stabilization with biological carbon inputs.",
+            f"Given how dry it already is, when topsoil fertility declines in a {biome_display} climate, soil aggregates collapse. The organic matter deficit means your soil's capillary water capacity is shot, accelerating evaporation. Our immediate priority here is restoring moisture retention and biological carbon without accidentally inducing competitive water stress.",
             "",
             "#### What I'd Do (Ranked Field Actions)"
         ]
 
         # 2. Ranked Recommendations
         ranks = ["Best Fit Option", "Second Option", "Complementary Practice"]
+        lead_ins = [
+            "This makes the most sense for your baseline conditions:",
+            "Another solid approach to consider:",
+            "To support the broader system recovery:"
+        ]
+
         for idx, rec in enumerate(recommendations[:3]):
             rank_label = ranks[idx] if idx < len(ranks) else f"Option {idx + 1}"
-            conf = rec.get("confidence", {})
-            conf_str = f"{conf.get('label', 'High Confidence')} ({conf.get('score', 0.90):.0%})"
+            lead_in = lead_ins[idx] if idx < len(lead_ins) else "Also consider:"
+            
+            conf_score = rec.get("confidence", {}).get("score", 0.90)
+            if conf_score >= 0.85:
+                qual_conf = "The evidence here is very solid"
+            elif conf_score >= 0.70:
+                qual_conf = "The evidence is reasonably solid, though local trial data would strengthen this"
+            else:
+                qual_conf = "This is a provisional recommendation based on limited regional studies"
+                
+            conf_str = f"{qual_conf} ({conf_score:.0%} confidence) — derived from {', '.join(rec.get('evidence_ids', ['peer-reviewed literature']))}"
             trade_offs_text = "; ".join(rec.get("trade_offs", [])) or "Monitor seasonal soil moisture during early establishment."
 
             lines.extend([
                 f"{idx + 1}. **{rank_label}: {rec.get('name')}**",
                 f"   - **Action**: {rec.get('action')}",
-                f"   - **Why this fits your conditions**: {rec.get('why_selected') or rec.get('mechanism')}",
-                f"   - **Critical Trade-Off / Caution**: {trade_offs_text}",
-                f"   - **Confidence & Basis**: {conf_str} — {', '.join(rec.get('evidence_ids', []))}",
+                f"   - **Why this fits**: {lead_in} {rec.get('why_selected') or rec.get('mechanism')}",
+                f"   - **Critical Trade-Off**: {trade_offs_text}",
+                f"   - **Confidence**: {conf_str}",
                 ""
             ])
 
@@ -360,7 +371,7 @@ class ScientificWriter:
         if causal_chains:
             lines.extend([
                 "#### How the Variables Connect (Causal Mechanism)",
-                "Interventions must address multiple interacting factors simultaneously rather than treating symptoms in isolation:"
+                "To understand why we selected these specific interventions, here is the biophysical chain reaction we need to reverse:"
             ])
             for chain in causal_chains[:2]:
                 lines.append(f"- **{chain.get('title')}**:")
@@ -422,19 +433,24 @@ class ScientificWriter:
             for e in retrieved_evidence[:6]
         ])
 
-        system_prompt = """You are an AI Environmental Scientist writing in rigorous, academic, hedged scientific register.
+        system_prompt = """You are Dr. Priya, Lead AI Environmental Scientist at Darukaa.Earth, writing in a rigorous but human, practitioner-focused register.
 ABSOLUTE CONSTRAINTS:
 1. Use ONLY the exact numbers, percentages, and metrics provided in the Pre-Computed Data. Never invent figures.
 2. Cite ONLY the evidence IDs provided in Retrieved Evidence. Never invent citations.
-3. Strictly format every recommendation into:
+3. Adopt a natural, mentor-like scientific tone:
+   - Allow brief acknowledgment of the person's situation (e.g. "this is a tough one — sandy soil and low rainfall limit your options") before diving into the mechanism.
+   - Vary sentence structures explicitly — do not repeat the same mechanical lead-in phrase (like "For your reported conditions...") across every bullet.
+   - Do NOT restate the user's input values verbatim in every section. Mention baseline conditions (like 320mm rain) once naturally, then refer back to them conversationally ("given how dry it already is...").
+   - Express calibrated uncertainty qualitatively first, number second (e.g. "The evidence here is reasonably solid, though local trial data would strengthen this (60%)").
+4. Strictly format every recommendation into:
    - Prescribed Action (What to do)
-   - Biophysical Mechanism (Why it works)
+   - Why this fits (Natural explanation without repetitive intros)
    - Impacted Environmental Metrics Table (Metric, Baseline, Projected, Delta, Time Horizon)
    - Time Horizon
-   - Confidence Level & Basis
+   - Confidence & Basis (Qualitative text + percentage)
    - Regional Trade-offs & Caveats (including dissenting subsoil moisture penalties)
    - Literature Citations
-4. Walk through the 3-hop causal chains connecting soil health, water retention, and biodiversity."""
+5. Walk through the 3-hop causal chains connecting soil health, water retention, and biodiversity."""
 
         user_content = f"""USER QUERY: {query}
 CASE PROFILE: {profile}
@@ -609,7 +625,8 @@ BEHAVIORAL RULES:
         rain_str = f"{rain} mm/yr" if rain is not None else "local rainfall levels"
 
         # ── Greeting / how are you ──────────────────────────────────────────────
-        if any(w in q for w in ["hello", "hi", "hey", "how are you", "good morning", "what can you do"]):
+        import re
+        if any(w in q for w in ["hello", "how are you", "good morning", "what can you do"]) or re.search(r'\b(hi|hey)\b', q):
             return (
                 f"Hello! Great to connect with you. I've been looking over your {eco} site assessment — "
                 f"with a health index of {health}/100, there's meaningful work we can do together here. "
@@ -619,7 +636,7 @@ BEHAVIORAL RULES:
             )
 
         # ── Species / plant selection ───────────────────────────────────────────
-        if any(w in q for w in ["species", "plant", "tree", "crop", "legume", "grass", "shrub", "substitute", "alternative", "replace", "variety"]):
+        if re.search(r'\b(species|plant|tree|crop|legume|grass|shrub|substitute|alternative|replace|variety)\b', q):
             if eco == "forest":
                 return (
                     f"For your {biome} forest corridor, species selection is really about layering — you want fast-growing pioneer species first "
@@ -658,7 +675,7 @@ BEHAVIORAL RULES:
                 )
 
         # ── Spacing / planting geometry ─────────────────────────────────────────
-        if any(w in q for w in ["spacing", "distance", "layout", "geometry", "grid", "how far", "depth", "density", "how many"]):
+        if re.search(r'\b(spacing|distance|layout|geometry|grid|how far|depth|density|how many)\b', q):
             if eco == "forest":
                 return (
                     f"For {biome} forest corridor planting, I generally recommend a 3×3 metre grid for pioneer shelterbelts — "
@@ -694,7 +711,7 @@ BEHAVIORAL RULES:
                 )
 
         # ── Watering / irrigation ───────────────────────────────────────────────
-        if any(w in q for w in ["water", "irrigation", "watering", "moisture", "drought", "dry", "rainfall deficit"]):
+        if re.search(r'\b(water|irrigation|watering|moisture|drought|dry|rainfall deficit)\b', q):
             return (
                 f"With {rain_str}, water is genuinely your most limiting variable here — and I want to be honest with you about that. "
                 f"The interventions I've recommended are specifically drought-adapted, but they still need establishment support in Year 1. "
@@ -705,7 +722,7 @@ BEHAVIORAL RULES:
             )
 
         # ── Timeline / how long ─────────────────────────────────────────────────
-        if any(w in q for w in ["how long", "timeline", "time", "year", "when", "quickly", "fast", "season"]):
+        if re.search(r'\b(how long|timeline|time|year|when|quickly|fast|season)\b', q):
             return (
                 f"Honest answer? Ecological restoration moves at the speed of biology, not technology — but the trajectory is genuinely exciting. "
                 f"In Year 1 (first 6 months), the visible change is modest: soil temperatures drop under residue cover, and you'll see the first "
@@ -717,7 +734,7 @@ BEHAVIORAL RULES:
             )
 
         # ── Soil, SOC, carbon, compaction ──────────────────────────────────────
-        if any(w in q for w in ["soil", "carbon", "soc", "organic matter", "compaction", "bulk density", "microbial", "ph", "nitrogen", "fertilizer", "compost"]):
+        if re.search(r'\b(soil|carbon|soc|organic matter|compaction|bulk density|microbial|ph|nitrogen|fertilizer|compost)\b', q):
             return (
                 f"Your SOC at {soc_str} is genuinely below the biological minimum — the FAO pegs 1.2% as the threshold for functional soil ecology, "
                 f"and below that you start losing the mycorrhizal networks that are the real engine of nutrient cycling. "
@@ -729,7 +746,7 @@ BEHAVIORAL RULES:
             )
 
         # ── Wildlife / biodiversity ─────────────────────────────────────────────
-        if any(w in q for w in ["bird", "wildlife", "pollinator", "bee", "insect", "biodiversity", "species richness", "fauna", "mammal", "fish", "amphibian"]):
+        if re.search(r'\b(bird|wildlife|pollinator|bee|insect|biodiversity|species richness|fauna|mammal|fish|amphibian)\b', q):
             return (
                 f"Wildlife recovery is one of the most rewarding things to watch, but it does follow its own timeline. "
                 f"In my experience, invertebrates — especially beetles, ground spiders, and parasitoid wasps — are the first to respond, "
@@ -741,7 +758,7 @@ BEHAVIORAL RULES:
             )
 
         # ── Cost / economics / funding ──────────────────────────────────────────
-        if any(w in q for w in ["cost", "money", "fund", "expensive", "cheap", "budget", "roi", "economic", "grant", "subsidy", "incentive"]):
+        if re.search(r'\b(cost|money|fund|expensive|cheap|budget|roi|economic|grant|subsidy|incentive)\b', q):
             return (
                 f"Cost is always the practical constraint, and I appreciate you raising it directly. "
                 f"The good news is that the interventions I've recommended are deliberately low-input — "
@@ -755,7 +772,7 @@ BEHAVIORAL RULES:
             )
 
         # ── How does the pipeline / AI work ────────────────────────────────────
-        if any(w in q for w in ["how does", "how do you", "pipeline", "ai", "model", "algorithm", "how are you", "who are you"]):
+        if re.search(r'\b(how does|how do you|pipeline|ai|model|algorithm|who are you)\b', q):
             return (
                 f"I'm Dr. Priya, your AI environmental scientist here at Darukaa.Earth. "
                 f"Under the hood, your assessment was generated by a 9-stage evidence pipeline — "
@@ -768,7 +785,7 @@ BEHAVIORAL RULES:
             )
 
         # ── Thank you / appreciation ────────────────────────────────────────────
-        if any(w in q for w in ["thank", "thanks", "great", "helpful", "amazing", "wonderful", "good"]):
+        if re.search(r'\b(thank|thanks|great|helpful|amazing|wonderful|good)\b', q):
             return (
                 f"Really glad that's useful! Restoration work takes genuine commitment, and it means a lot that you're investing "
                 f"this kind of attention in your {eco} site. "

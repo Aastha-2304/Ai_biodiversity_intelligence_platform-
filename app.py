@@ -10,6 +10,9 @@ import json
 import io
 import sys
 import os
+from dotenv import load_dotenv
+load_dotenv()
+
 import textwrap
 import datetime
 import uuid
@@ -656,14 +659,6 @@ with st.sidebar:
     st.markdown("---")
     st.markdown(f"**Session ID:** `{st.session_state.session_id}`")
     
-    if st.button("🔄 New Consultation Session", use_container_width=True, type="secondary"):
-        reset_case_file(st.session_state.session_id)
-        st.session_state.messages = []
-        st.session_state.followup_chat = []
-        st.session_state.last_result = None
-        st.session_state.session_id = "st_" + str(uuid.uuid4())[:8]
-        st.rerun()
-
     if st.session_state.last_result:
         try:
             from fpdf import FPDF
@@ -992,7 +987,8 @@ if active_panel == "🔬 AI Scientist & Assessment":
                 "contradiction_alerts": res.get("contradiction_alerts", []),
                 "result": res
             })
-            AuditDatabase.save_chat_message(st.session_state.session_id, "assistant", reply_txt[:300] + "...", "assessment")
+            # NOTE: Assessment is stored in the assessments table via save_assessment().
+            # We intentionally do NOT save to chat_messages to keep Dr. Priya chat clean.
 
         st.rerun()
 
@@ -1196,18 +1192,18 @@ if active_panel == "🔬 AI Scientist & Assessment":
                         st.rerun()
 
             # ── Chat Input ────────────────────────────────────────────────────
-            chat_cols = st.columns([5.5, 0.9])
-            with chat_cols[0]:
-                user_chat_q = st.text_input(
-                    "Ask Dr. Priya",
-                    placeholder="Ask about species, spacing, water, costs, timelines, biodiversity...",
-                    label_visibility="collapsed",
-                    key="scientist_chat_input"
-                )
-            with chat_cols[1]:
-                send_clicked = st.button("Send ➤", type="primary", use_container_width=True, key="scientist_chat_send")
+            with st.form("scientist_chat_form", clear_on_submit=True, border=False):
+                chat_cols = st.columns([5.5, 0.9])
+                with chat_cols[0]:
+                    user_chat_q = st.text_input(
+                        "Ask Dr. Priya",
+                        placeholder="Ask about species, spacing, water, costs, timelines, biodiversity...",
+                        label_visibility="collapsed"
+                    )
+                with chat_cols[1]:
+                    send_clicked = st.form_submit_button("Send ➤", type="primary", use_container_width=True)
 
-            if (send_clicked or user_chat_q) and user_chat_q and user_chat_q.strip():
+            if send_clicked and user_chat_q and user_chat_q.strip():
                 now_ts = datetime.datetime.now().strftime("%H:%M")
                 question = user_chat_q.strip()
                 st.session_state.followup_chat.append({"role": "user", "text": question, "time": now_ts})
@@ -1226,11 +1222,23 @@ if active_panel == "🔬 AI Scientist & Assessment":
                 AuditDatabase.save_chat_message(st.session_state.session_id, "assistant", ai_ans, "followup")
                 st.rerun()
 
-            # ── Clear Chat ────────────────────────────────────────────────────
-            if st.session_state.followup_chat:
-                if st.button("🗑️ Clear conversation", key="clear_chat_btn", type="secondary"):
+            # ── Chat Controls ────────────────────────────────────────────────────
+            st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
+            ctrl_cols = st.columns([1.5, 1.5, 4])
+            with ctrl_cols[0]:
+                if st.button("🔄 New Session", use_container_width=True, type="secondary", key="new_session_chat"):
+                    reset_case_file(st.session_state.session_id)
+                    st.session_state.messages = []
                     st.session_state.followup_chat = []
+                    st.session_state.last_result = None
+                    st.session_state.session_id = "st_" + str(uuid.uuid4())[:8]
                     st.rerun()
+
+            with ctrl_cols[1]:
+                if st.session_state.followup_chat:
+                    if st.button("🗑️ Clear Chat", key="clear_chat_btn", use_container_width=True, type="secondary"):
+                        st.session_state.followup_chat = []
+                        st.rerun()
 
 
 
@@ -2145,8 +2153,8 @@ elif active_panel == "🗄️ Audit History & Database":
                             loaded_id = s["session_id"]
                             st.session_state.session_id = loaded_id
 
-                            # Restore chat/message history
-                            chat_history = AuditDatabase.get_session_chat_history(loaded_id)
+                            # Restore chat/message history — only followup Q&A, not the assessment report
+                            chat_history = AuditDatabase.get_session_chat_history(loaded_id, context_type="followup")
                             st.session_state.followup_chat = chat_history
 
                             # Reconstruct messages list from chat history for Panel 1 display
