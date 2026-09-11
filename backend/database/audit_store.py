@@ -51,9 +51,17 @@ class AuditDatabase:
                 ecosystem_type TEXT,
                 health_score REAL,
                 summary TEXT,
-                query_count INTEGER DEFAULT 1
+                query_count INTEGER DEFAULT 1,
+                result_json TEXT
             )
             """)
+
+            # Migrate existing databases: add result_json column if missing
+            try:
+                cursor.execute("ALTER TABLE sessions ADD COLUMN result_json TEXT")
+                conn.commit()
+            except sqlite3.OperationalError:
+                pass  # Column already exists
 
             # Assessments Cache Table (Normalized telemetry hash for instant reuse)
             cursor.execute("""
@@ -205,18 +213,19 @@ class AuditDatabase:
                 result_json = excluded.result_json
             """, (sig, eco, query, payload_json, result_json, now_str, now_str))
 
-            # Upsert into sessions table
+            # Upsert into sessions table — also store latest result_json for fast session restore
             cursor.execute("""
-            INSERT INTO sessions (session_id, created_at, updated_at, title, ecosystem_type, health_score, summary, query_count)
-            VALUES (?, ?, ?, ?, ?, ?, ?, 1)
+            INSERT INTO sessions (session_id, created_at, updated_at, title, ecosystem_type, health_score, summary, query_count, result_json)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)
             ON CONFLICT(session_id) DO UPDATE SET
                 updated_at = excluded.updated_at,
                 title = excluded.title,
                 ecosystem_type = excluded.ecosystem_type,
                 health_score = excluded.health_score,
                 summary = excluded.summary,
-                query_count = query_count + 1
-            """, (session_id, now_str, now_str, title, eco, health, summary))
+                query_count = query_count + 1,
+                result_json = excluded.result_json
+            """, (session_id, now_str, now_str, title, eco, health, summary, result_json))
 
             conn.commit()
 
@@ -282,6 +291,52 @@ class AuditDatabase:
             """, (limit,))
             rows = cursor.fetchall()
             return [dict(r) for r in rows]
+
+    @classmethod
+    def get_session_last_result(cls, session_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Retrieves the exact assessment result stored for a specific session.
+        Used to restore full dashboard state when switching between sessions.
+        """
+        cls.initialize()
+        with cls._get_connection() as conn:
+            cursor = conn.cursor()
+            # Primary: use the result_json stored directly on the session row
+            cursor.execute("""
+            SELECT result_json, updated_at
+            FROM sessions
+            WHERE session_id = ?
+            """, (session_id,))
+            row = cursor.fetchone()
+            if row and row["result_json"]:
+                try:
+                    result = json.loads(row["result_json"])
+                    result["is_cached"] = True
+                    result["cached_since"] = row["updated_at"]
+                    return result
+                except Exception:
+                    pass
+
+            # Fallback: join on ecosystem_type to find a nearby assessment
+            cursor.execute("""
+            SELECT a.result_json, a.hit_count, a.created_at
+            FROM assessments a
+            INNER JOIN sessions s ON s.ecosystem_type = a.ecosystem_type
+            WHERE s.session_id = ?
+            ORDER BY a.last_accessed_at DESC
+            LIMIT 1
+            """, (session_id,))
+            row2 = cursor.fetchone()
+            if row2:
+                try:
+                    result = json.loads(row2["result_json"])
+                    result["is_cached"] = True
+                    result["cached_hit_count"] = row2["hit_count"]
+                    result["cached_since"] = row2["created_at"]
+                    return result
+                except Exception:
+                    return None
+        return None
 
     @classmethod
     def get_database_stats(cls) -> Dict[str, Any]:

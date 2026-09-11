@@ -1105,6 +1105,132 @@ if active_panel == "🔬 AI Scientist & Assessment":
                     st.session_state.nav_index = 5
                     st.rerun()
 
+            # ══════════════════════════════════════════════════════════════════
+            # 💬 AI ENVIRONMENTAL SCIENTIST CHAT
+            # ══════════════════════════════════════════════════════════════════
+            st.markdown("---")
+            st.markdown(clean_html("""
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+                <div style="width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#382417,#8B5E3C);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;box-shadow:0 2px 8px rgba(56,36,23,0.25)">🌍</div>
+                <div>
+                    <div style="font-size:15px;font-weight:800;color:#382417;letter-spacing:0.01em">Dr. Priya — AI Environmental Scientist</div>
+                    <div style="font-size:11.5px;color:#856852;margin-top:1px">Ask me anything about your site — species, spacing, water, timelines, funding, biodiversity recovery</div>
+                </div>
+                <span style="margin-left:auto;background:#D1FAE5;border:1px solid #059669;color:#065F46;font-family:'Fira Code',monospace;font-size:10px;font-weight:800;padding:3px 10px;border-radius:20px;white-space:nowrap">● ACTIVE & GROUNDED</span>
+            </div>
+            """), unsafe_allow_html=True)
+
+            # ── Chat History ──────────────────────────────────────────────────
+            chat_container = st.container()
+            with chat_container:
+                if st.session_state.followup_chat:
+                    for msg in st.session_state.followup_chat:
+                        role = msg.get("role", "user")
+                        text = msg.get("text", "")
+                        time_str = (msg.get("time") or "")[:16]
+
+                        if role == "user":
+                            st.markdown(clean_html(f"""
+                            <div style="display:flex;justify-content:flex-end;align-items:flex-start;gap:10px;margin:10px 0">
+                                <div style="max-width:72%;background:#FFF5E1;border:1.5px solid rgba(169,113,66,0.3);border-radius:14px 14px 4px 14px;padding:11px 15px;box-shadow:0 2px 8px rgba(139,94,60,0.07)">
+                                    <div style="font-size:13px;color:#2D1810;line-height:1.55">{text}</div>
+                                    <div style="font-size:10px;color:#A07050;margin-top:5px;text-align:right">{time_str}</div>
+                                </div>
+                                <div style="width:34px;height:34px;border-radius:50%;background:#FEF3C7;border:2px solid #D9A441;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">🧑</div>
+                            </div>
+                            """), unsafe_allow_html=True)
+                        else:
+                            st.markdown(clean_html(f"""
+                            <div style="display:flex;justify-content:flex-start;align-items:flex-start;gap:10px;margin:10px 0">
+                                <div style="width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#382417,#8B5E3C);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;box-shadow:0 2px 6px rgba(56,36,23,0.2)">🌍</div>
+                                <div style="max-width:82%;background:#FFFDF8;border:1.5px solid rgba(169,113,66,0.22);border-radius:4px 14px 14px 14px;padding:11px 15px;box-shadow:0 2px 8px rgba(139,94,60,0.05)">
+                                    <div style="font-size:10px;font-weight:800;color:#8B5E3C;font-family:'Fira Code',monospace;margin-bottom:5px">DR. PRIYA · AI ENVIRONMENTAL SCIENTIST</div>
+                                    <div style="font-size:13px;color:#2D1810;line-height:1.65">{text}</div>
+                                    <div style="font-size:10px;color:#A07050;margin-top:5px">{time_str}</div>
+                                </div>
+                            </div>
+                            """), unsafe_allow_html=True)
+                else:
+                    # Empty state with a warm welcome
+                    eco_ctx = (res.get("rule_metrics", {}).get("ecosystem_type") or "your ecosystem").title()
+                    st.markdown(clean_html(f"""
+                    <div style="background:linear-gradient(135deg,#FFFDF8,#FAF5EE);border:1.5px solid rgba(169,113,66,0.2);border-radius:12px;padding:18px 22px;margin:12px 0;text-align:center">
+                        <div style="font-size:24px;margin-bottom:8px">🌱</div>
+                        <div style="font-size:14px;font-weight:700;color:#382417;margin-bottom:6px">I've reviewed your {eco_ctx} assessment — what would you like to explore?</div>
+                        <div style="font-size:12px;color:#856852;line-height:1.6">Ask me about species selection, planting geometry, water budgets, timelines, biodiversity recovery, or how to interpret any part of your diagnosis.</div>
+                    </div>
+                    """), unsafe_allow_html=True)
+
+            # ── Suggested Questions (Chips) ───────────────────────────────────
+            if not st.session_state.followup_chat:
+                eco_chip = (res.get("rule_metrics", {}).get("ecosystem_type") or "agricultural").lower()
+                chips = {
+                    "forest": ["What tree spacing should I use?", "Which native species should I plant first?", "How long until I see wildlife recovery?"],
+                    "urban": ["What's the best Miyawaki planting density?", "Which sedges filter pollutants best?", "How does bioswale grading work?"],
+                    "wetland": ["Which macrophytes should I plant first?", "How deep should my planting zones be?", "When will dissolved oxygen recover?"],
+                }.get(eco_chip, [
+                    "Can I substitute chickpea with another legume?",
+                    "How much water is saved with cover cropping?",
+                    "What tree spacing should I use for windbreaks?"
+                ])
+
+                chip_cols = st.columns(len(chips))
+                for c_i, chip_q in enumerate(chips):
+                    if chip_cols[c_i].button(f"💬 {chip_q}", key=f"chip_q_{c_i}", use_container_width=True):
+                        # Treat as user question
+                        now_ts = datetime.datetime.now().strftime("%H:%M")
+                        st.session_state.followup_chat.append({"role": "user", "text": chip_q, "time": now_ts})
+                        AuditDatabase.save_chat_message(st.session_state.session_id, "user", chip_q, "followup")
+                        with st.spinner("Dr. Priya is thinking..."):
+                            chat_res = res
+                            ai_ans = ScientificWriter.answer_assessment_followup(
+                                user_question=chip_q,
+                                profile=chat_res.get("case_file", {}).get("profile", {}),
+                                rule_eval=chat_res.get("rule_metrics", {}),
+                                recommendations=chat_res.get("recommendations", []),
+                                retrieved_evidence=chat_res.get("retrieved_evidence", []),
+                                chat_history=st.session_state.followup_chat[:-1],
+                            )
+                        st.session_state.followup_chat.append({"role": "assistant", "text": ai_ans, "time": now_ts})
+                        AuditDatabase.save_chat_message(st.session_state.session_id, "assistant", ai_ans, "followup")
+                        st.rerun()
+
+            # ── Chat Input ────────────────────────────────────────────────────
+            chat_cols = st.columns([5.5, 0.9])
+            with chat_cols[0]:
+                user_chat_q = st.text_input(
+                    "Ask Dr. Priya",
+                    placeholder="Ask about species, spacing, water, costs, timelines, biodiversity...",
+                    label_visibility="collapsed",
+                    key="scientist_chat_input"
+                )
+            with chat_cols[1]:
+                send_clicked = st.button("Send ➤", type="primary", use_container_width=True, key="scientist_chat_send")
+
+            if (send_clicked or user_chat_q) and user_chat_q and user_chat_q.strip():
+                now_ts = datetime.datetime.now().strftime("%H:%M")
+                question = user_chat_q.strip()
+                st.session_state.followup_chat.append({"role": "user", "text": question, "time": now_ts})
+                AuditDatabase.save_chat_message(st.session_state.session_id, "user", question, "followup")
+
+                with st.spinner("🌍 Dr. Priya is thinking..."):
+                    ai_ans = ScientificWriter.answer_assessment_followup(
+                        user_question=question,
+                        profile=res.get("case_file", {}).get("profile", {}),
+                        rule_eval=res.get("rule_metrics", {}),
+                        recommendations=res.get("recommendations", []),
+                        retrieved_evidence=res.get("retrieved_evidence", []),
+                        chat_history=st.session_state.followup_chat[:-1],
+                    )
+                st.session_state.followup_chat.append({"role": "assistant", "text": ai_ans, "time": now_ts})
+                AuditDatabase.save_chat_message(st.session_state.session_id, "assistant", ai_ans, "followup")
+                st.rerun()
+
+            # ── Clear Chat ────────────────────────────────────────────────────
+            if st.session_state.followup_chat:
+                if st.button("🗑️ Clear conversation", key="clear_chat_btn", type="secondary"):
+                    st.session_state.followup_chat = []
+                    st.rerun()
 
 
 
@@ -2015,9 +2141,40 @@ elif active_panel == "🗄️ Audit History & Database":
                 with s_c3:
                     if not is_active:
                         if st.button("📂 Load Session", key=f"load_sess_{s['session_id']}", use_container_width=True):
-                            st.session_state.session_id = s["session_id"]
-                            st.session_state.followup_chat = AuditDatabase.get_session_chat_history(s["session_id"])
-                            st.success(f"Loaded session {s['session_id']} into active memory!")
+                            # ── Restore full session state ──────────────────────────────────────
+                            loaded_id = s["session_id"]
+                            st.session_state.session_id = loaded_id
+
+                            # Restore chat/message history
+                            chat_history = AuditDatabase.get_session_chat_history(loaded_id)
+                            st.session_state.followup_chat = chat_history
+
+                            # Reconstruct messages list from chat history for Panel 1 display
+                            restored_messages = []
+                            for ch in chat_history:
+                                restored_messages.append({
+                                    "role": ch["role"] if ch["role"] in ("user", "system") else "system",
+                                    "text": ch["text"],
+                                    "time": (ch.get("time") or "")[:16]
+                                })
+                            st.session_state.messages = restored_messages
+
+                            # ── Critical: Restore last_result so all dashboards update ──────────
+                            restored_result = AuditDatabase.get_session_last_result(loaded_id)
+                            st.session_state.last_result = restored_result
+
+                            if restored_result:
+                                st.success(
+                                    f"✅ Session `{loaded_id}` restored — "
+                                    f"all dashboards (Intelligence, Biodiversity, Prescriptions, Sources) "
+                                    f"now reflect this session's analysis."
+                                )
+                            else:
+                                st.warning(
+                                    f"⚠️ Session `{loaded_id}` loaded (chat history restored), "
+                                    f"but no saved assessment was found. "
+                                    f"Run a new assessment to populate the dashboards."
+                                )
                             st.rerun()
                     else:
                         st.markdown(f"<span style='color:#059669;font-weight:700'>{badge}</span>", unsafe_allow_html=True)

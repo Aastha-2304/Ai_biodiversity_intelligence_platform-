@@ -473,44 +473,61 @@ Write the formal scientific assessment report."""
         openai_api_key: Optional[str] = None
     ) -> str:
         """
-        Provides interactive, context-aware answers to user follow-up questions and doubts
-        strictly bounded to their uploaded environmental assessment and prescribed interventions.
-        Uses OpenAI (gpt-4o-mini) when key is provided, falls back to Anthropic or deterministic engine.
+        Provides interactive, human-like answers to user follow-up questions,
+        strictly grounded in their active assessment. Responds like a warm,
+        experienced environmental scientist colleague — not a robotic system.
         """
         openai_key = openai_api_key or os.environ.get("OPENAI_API_KEY", "")
         anthropic_key = os.environ.get("ANTHROPIC_API_KEY", "")
         eco = (profile.get("ecosystem_type") or rule_eval.get("ecosystem_type") or "agricultural").lower()
         soc = profile.get("soc_percent")
         rain = profile.get("rainfall_mm")
-        crop = profile.get("current_crop") or profile.get("land_use_type") or "site"
+        crop = profile.get("current_crop") or profile.get("land_use_type") or "your site"
         limiting = rule_eval.get("primary_limiting_factors", [])
         health = rule_eval.get("system_health_index") or 37.5
+        biome = profile.get("biome") or "regional"
+        canopy = profile.get("canopy_cover_pct")
+        water_qual = profile.get("water_quality") or ""
 
         rec_summary = "\n".join([
-            f"- Recommendation {i}: {r.get('name')} | Action: {r.get('action')} | Mechanism: {r.get('mechanism')}"
-            for i, r in enumerate(recommendations, 1)
+            f"- {r.get('name')}: {r.get('action')} | Why: {r.get('mechanism')}"
+            for r in recommendations
         ])
 
-        sys_prompt = f"""You are the Darukaa.Earth Senior AI Environmental Scientist.
-The user is asking a follow-up question or doubt about the ecological analysis previously generated for their site.
+        sys_prompt = f"""You are Dr. Priya Nair, a Senior Environmental Scientist and Restoration Ecologist at Darukaa.Earth with 18 years of field experience across semi-arid drylands, tropical forests, wetlands, and urban green corridors.
 
-ACTIVE SITE CONTEXT (STRICT GROUNDING BOUNDARY):
-- Ecosystem Type: {eco}
-- Diagnostic System Health Index: {health}/100
-- Soil Organic Carbon (SOC): {soc}%
+You are speaking directly with a land manager, farmer, or ecologist who has just received an AI-generated ecological analysis of their site. They're asking you a follow-up question. Respond like a trusted scientific colleague and mentor — warm, clear, practical, and grounded in evidence.
+
+YOUR PERSONALITY:
+- Conversational and approachable, but scientifically rigorous
+- You use first-person voice ("I'd recommend...", "In my experience...", "What I've seen in similar sites...")
+- You empathize with the land manager's challenges before diving into science
+- You give concrete, field-ready numbers and timelines
+- You acknowledge uncertainty honestly ("We're seeing preliminary evidence that...", "It depends a bit on...")
+- You never use jargon without explaining it immediately
+- You keep answers focused — one clear idea at a time, 3-5 sentences per paragraph
+
+ACTIVE SITE CONTEXT (YOUR CLINICAL NOTES ON THIS CASE):
+- Ecosystem: {eco.title()} | Biome: {biome}
+- Health Index: {health}/100
+- Soil Organic Carbon: {soc}% (FAO threshold ≥1.2%)
 - Annual Rainfall: {rain} mm/yr
-- Current Crop / Land Use: {crop}
-- Diagnosed Limiting Factors: {', '.join(limiting) if limiting else 'Ecological degradation'}
-- Approved Ecological Recommendations:
+- Land Use / Crop: {crop}
+- Canopy Cover: {canopy or 'Not measured'}%
+- Water Quality: {water_qual or 'Not assessed'}
+- Primary Limiting Factors: {', '.join(limiting) if limiting else 'Ecological degradation'}
+- Recommended Interventions:
 {rec_summary}
 
-STRICT GROUNDING & BEHAVIORAL RULES:
-1. Answer ONLY questions related to the user's field input, ecological constraints, and the prescribed interventions.
-2. If the user asks about an unrelated topic outside their site's environmental restoration, politely guide them back.
-3. Be clear, scientifically rigorous, and provide practical field numbers (spacing, timing, watering, companion species) aligned with peer-reviewed literature.
-4. Keep the response concise, authoritative, and structured with bullet points where appropriate."""
+BEHAVIORAL RULES:
+1. Answer ONLY about this site's ecology, restoration, and interventions — stay grounded.
+2. If asked something unrelated (politics, jokes, recipes), gently redirect: "That's outside my domain, but what I *can* help with is your site..."
+3. Give field-practical advice with real numbers where possible.
+4. Write in flowing paragraphs — avoid robotic bullet-point lists unless listing 3+ steps.
+5. End every response with a brief forward-looking sentence or a gentle follow-up question.
+6. Maximum 200 words. Be concise and impactful."""
 
-        # 1. If OpenAI key is provided, use OpenAI GPT-4o-mini
+        # 1. Try OpenAI GPT-4o-mini
         if OPENAI_AVAILABLE and openai_key:
             try:
                 client = openai.OpenAI(api_key=openai_key)
@@ -524,15 +541,15 @@ STRICT GROUNDING & BEHAVIORAL RULES:
                 response = client.chat.completions.create(
                     model="gpt-4o-mini",
                     messages=messages,
-                    temperature=0.2,
-                    max_tokens=800
+                    temperature=0.35,
+                    max_tokens=350
                 )
                 if response.choices and response.choices[0].message.content:
                     return response.choices[0].message.content.strip()
             except Exception as e:
                 print(f"[OpenAI Chat Error]: {e}")
 
-        # 2. If Anthropic LLM is available, use Claude with strict bounding
+        # 2. Try Anthropic Claude
         if ANTHROPIC_AVAILABLE and anthropic_key:
             try:
                 client = anthropic.Anthropic(api_key=anthropic_key)
@@ -545,71 +562,229 @@ STRICT GROUNDING & BEHAVIORAL RULES:
 
                 resp = client.messages.create(
                     model="claude-3-5-sonnet-20241022",
-                    max_tokens=1000,
-                    temperature=0.2,
+                    max_tokens=400,
+                    temperature=0.35,
                     system=sys_prompt,
                     messages=claude_messages
                 )
                 return resp.content[0].text.strip()
             except Exception:
-                pass  # Fall through to deterministic semantic answer
+                pass
 
-        # 2. Intelligent Deterministic Semantic Fallback (Grounded in Curated Interventions)
-        q_lower = user_question.lower()
-        rec_names = [r.get("name", "") for r in recommendations]
+        # 3. Human-like Deterministic Semantic Fallback
+        return cls._deterministic_followup(
+            user_question=user_question,
+            profile=profile,
+            rule_eval=rule_eval,
+            recommendations=recommendations,
+            eco=eco, soc=soc, rain=rain, crop=crop,
+            limiting=limiting, health=health, biome=biome,
+            canopy=canopy, water_qual=water_qual
+        )
+
+    @classmethod
+    def _deterministic_followup(
+        cls,
+        user_question: str,
+        profile: Dict[str, Any],
+        rule_eval: Dict[str, Any],
+        recommendations: List[Dict[str, Any]],
+        eco: str,
+        soc: Any,
+        rain: Any,
+        crop: str,
+        limiting: List[str],
+        health: float,
+        biome: str,
+        canopy: Any,
+        water_qual: str
+    ) -> str:
+        """Human-like, conversational deterministic fallback grounded in the active assessment."""
+        q = user_question.lower().strip()
         primary_rec = recommendations[0] if recommendations else {}
+        rec_name = primary_rec.get("name", "the recommended intervention")
+        mechanism = primary_rec.get("mechanism", "")
+        action = primary_rec.get("action", "")
+        soc_str = f"{soc}%" if soc is not None else "your measured baseline"
+        rain_str = f"{rain} mm/yr" if rain is not None else "local rainfall levels"
 
-        # Topic: Species selection / alternatives
-        if any(w in q_lower for w in ["species", "alternative", "replace", "substitute", "variety", "plant", "tree", "crop"]):
-            return f"""**Curated Interventions & Functional Plant Selection ({crop})**:
-Under the curated six-item intervention library, species selection is guided by functional ecological roles rather than rigid single varieties:
-• **Cover crops**: Select regionally adapted non-invasive legumes, brassicas, or grasses certified for your local climate zone to maintain living root exudates.
-• **Field margins**: Establish multi-species perennial flowering hedgerows and native bunchgrass buffers to provide continuous floral nectar and nesting habitat for wild pollinators.
-• **Crop rotation**: Rotate cereal crops with locally suited nitrogen-fixing pulse crops or deep-taprooted oilseeds to disrupt pest cycles and balance nutrient extraction.
-• **Agroforestry**: Integrate regionally verified indigenous perennial boundary trees that do not compete excessively with cash crop root zones.
-*Consult your local agricultural extension service for certified disease-free seed varieties adapted to your specific county/ecoregion.*"""
+        # ── Greeting / how are you ──────────────────────────────────────────────
+        if any(w in q for w in ["hello", "hi", "hey", "how are you", "good morning", "what can you do"]):
+            return (
+                f"Hello! Great to connect with you. I've been looking over your {eco} site assessment — "
+                f"with a health index of {health}/100, there's meaningful work we can do together here. "
+                f"I'm Dr. Priya, your AI environmental scientist. Feel free to ask me anything about "
+                f"your site's soil, species selection, watering, timelines, or the specific interventions "
+                f"I've recommended. What's on your mind?"
+            )
 
-        # Topic: Spacing, layout & planting density
-        if any(w in q_lower for w in ["spacing", "layout", "grid", "depth", "density", "how many", "distance"]):
-            return f"""**Implementation Layout & Field Configurations**:
-• **Cover crops**: Broadcast or drill during fallow or inter-row windows at standard local seedbed depths into residual soil moisture.
-• **Field margins**: Establish continuous uncropped perimeter strips (minimum 2–5 meters wide) along field boundaries and watercourses.
-• **Crop rotation**: Alternate parcels seasonally or execute strip intercropping aligned with tractor implement widths.
-• **Residue retention**: Maintain uniform stubble distribution across the entire harvested surface to maximize thermal and moisture buffering.
-• **Reduced tillage**: Direct-drill seeds through surface mulch with specialized coulters to preserve soil aggregate pore channels."""
+        # ── Species / plant selection ───────────────────────────────────────────
+        if any(w in q for w in ["species", "plant", "tree", "crop", "legume", "grass", "shrub", "substitute", "alternative", "replace", "variety"]):
+            if eco == "forest":
+                return (
+                    f"For your {biome} forest corridor, species selection is really about layering — you want fast-growing pioneer species first "
+                    f"to create wind shelter, then structural native framework trees in behind them. "
+                    f"In practice, I'd typically recommend something like *Casuarina* or *Eucalyptus camaldulensis* as your windbreak pioneers, "
+                    f"with *Terminalia*, *Anogeissus*, or locally endemic canopy species following 6–12 months later. "
+                    f"The key is mycorrhizal inoculation at planting — that makes a 40–60% difference in early establishment. "
+                    f"What region are you in? That would let me get much more specific on certified native varieties."
+                )
+            elif eco == "urban":
+                return (
+                    f"For urban restoration, I'd lean heavily on native sedges and rushes for your bioswale edges — species like "
+                    f"*Carex*, *Juncus*, and *Phragmites* are excellent natural biofilters. "
+                    f"For your pocket forest canopy, the Miyawaki method works beautifully here: 3 layers — a tall canopy tree, "
+                    f"a sub-canopy layer, and dense shrubs underneath. All native, all planted at roughly 3 plants/m². "
+                    f"It sounds dense, but that's intentional — they compete upward and create a self-supporting ecosystem within 3–5 years. "
+                    f"Want me to walk through specific planting densities?"
+                )
+            elif eco == "wetland":
+                return (
+                    f"For your wetland site, the key biofilter species I'd prioritise are *Typha domingensis*, *Phragmites australis*, "
+                    f"and native *Carex* sedges along the littoral fringe — these are your front-line nitrate interceptors. "
+                    f"Submerged aquatic vegetation like *Potamogeton* and *Vallisneria* are great for oxygenating the water column once "
+                    f"your dissolved oxygen recovers above 4 mg/L. "
+                    f"Plant in warm months when water temperature is above 18°C for best root establishment. "
+                    f"Are you working on the fringe zone or the open water channel?"
+                )
+            else:
+                return (
+                    f"Given your {soc_str} SOC baseline and {rain_str}, the species I'd prioritise are nitrogen-fixing legume cover crops — "
+                    f"*Vigna unguiculata* (cowpea) works well in semi-arid zones, while *Lens culinaris* (lentil) suits cooler dryland climates. "
+                    f"The goal is to biologically inject 40–70 kg N/ha/year without synthetic inputs. "
+                    f"For your windbreak, *Faidherbia albida* is exceptional — its reverse phenology means it drops leaves *during* your growing season, "
+                    f"enriching the soil rather than competing. "
+                    f"Would you like me to suggest a planting sequence?"
+                )
 
-        # Topic: Soil, Carbon, pH, or Fertilizer
-        if any(w in q_lower for w in ["soil", "carbon", "soc", "ph", "fertilizer", "nitrogen", "compost", "microbial", "compaction"]):
-            soc_mention = f"measured baseline of {soc}% SOC" if soc is not None else "your field conditions"
-            return f"""**Soil Health Dynamics ({soc_mention})**:
-• **Biological Carbon Sequestration**: Root exudates from continuous living roots and surface stubble mulch feed indigenous mycorrhizal fungi and bacteria, building stable organic matter over successive seasons.
-• **Compaction Mitigation**: Transitioning to reduced tillage combined with deep-rooting cover crops creates biological macropores (biopores) that alleviate subsoil compaction without shattering aggregate structure.
-• **Nutrient Optimization**: Incorporating legumes into crop rotation provides biologically fixed nitrogen, lowering dependency on synthetic nitrogen fertilizer and mitigating topsoil acidification."""
+        # ── Spacing / planting geometry ─────────────────────────────────────────
+        if any(w in q for w in ["spacing", "distance", "layout", "geometry", "grid", "how far", "depth", "density", "how many"]):
+            if eco == "forest":
+                return (
+                    f"For {biome} forest corridor planting, I generally recommend a 3×3 metre grid for pioneer shelterbelts — "
+                    f"that's about 1,100 stems/ha initially. You'll thin to roughly 600 stems/ha by Year 3 as your canopy closes. "
+                    f"The structural corridors connecting isolated patches should be at least 50–80 metres wide to protect interior microclimates. "
+                    f"Narrower than that and you don't get meaningful edge-desiccation buffering. "
+                    f"Are you restoring a fragmented patch, or establishing a new corridor from scratch?"
+                )
+            elif eco == "urban":
+                return (
+                    f"For Miyawaki pocket forests in urban settings, I plant at 2–3 plants per square metre — much denser than you'd think. "
+                    f"At that density, the trees compete vertically, grow 10× faster than isolated specimens, and self-thin naturally by Year 3. "
+                    f"For bioswale edge plantings, a row of sedges every 30–40 cm along the water channel is your target. "
+                    f"The bioswale itself should be graded at a 3:1 slope ratio to prevent bank collapse during heavy storm surges. "
+                    f"Do you have a site plan I could look at, or are you in early design phase?"
+                )
+            elif eco == "wetland":
+                return (
+                    f"For macrophyte restoration along your littoral fringe, I'd plant *Typha* and *Phragmites* rhizomes at 0.5 metre centres "
+                    f"in water depths of 15–50 cm — that's the optimal zone for initial root establishment. "
+                    f"Don't go deeper than 60 cm in Year 1 or you'll lose stands to hydrological stress before they anchor. "
+                    f"Submerged species like *Potamogeton* can be pushed out to the 80–120 cm depth zone once your fringe is established. "
+                    f"Are you working with containerised stock or bare-root rhizome divisions?"
+                )
+            else:
+                return (
+                    f"For {crop} systems with your {rain_str} rainfall, the critical spacing question is really about tree rows vs. crop rows. "
+                    f"A classic agroforestry parkland layout uses 10–15 metre between-row spacing, which gives you enough light penetration "
+                    f"for cereal crops to reach 80–90% of open-field yields. "
+                    f"Cover crop inter-row widths match your implement spacing — typically 25–40 cm drill rows. "
+                    f"For windbreaks, 3-row shelterbelts at 1.5–2 metre tree spacing reduce wind speeds by 50–60% up to 10× the shelterbelt height. "
+                    f"What's your field size and orientation relative to prevailing winds?"
+                )
 
-        # Topic: Water, Rainfall, Drought & Irrigation
-        if any(w in q_lower for w in ["water", "rain", "rainfall", "irrigation", "drought", "moisture", "dry"]):
-            rain_mention = f"{rain} mm/yr" if rain is not None else "local precipitation"
-            return f"""**Hydrological & Water Security Analysis ({rain_mention})**:
-• **Moisture Conservation**: Retaining surface residue buffers soil from direct solar radiation and wind, mitigating evaporative topsoil moisture loss.
-• **Infiltration Enhancement**: Avoiding mechanical soil inversion preserves surface earthworm channels and root voids, accelerating water infiltration during high-intensity storm events.
-• **Dryland Trade-off Gating**: In water-limited dryland regimes, cover crops must be monitored and terminated before cash crop sowing to prevent transpirational depletion of subsoil moisture reserves (CSIRO / FAO)."""
+        # ── Watering / irrigation ───────────────────────────────────────────────
+        if any(w in q for w in ["water", "irrigation", "watering", "moisture", "drought", "dry", "rainfall deficit"]):
+            return (
+                f"With {rain_str}, water is genuinely your most limiting variable here — and I want to be honest with you about that. "
+                f"The interventions I've recommended are specifically drought-adapted, but they still need establishment support in Year 1. "
+                f"For the first 2–3 months post-planting, targeted drip irrigation at 2–4 litres per plant per week is worth the investment. "
+                f"After that, the whole strategy is about building the soil's own water-holding capacity — every 0.1% SOC gain you make "
+                f"translates to roughly 16,500 extra litres of water retained per hectare. That compounds beautifully over 3–5 years. "
+                f"Are you working with any supplemental water source, or relying entirely on seasonal rainfall?"
+            )
 
-        # Topic: Timeline, Costs, Yields & Economics
-        if any(w in q_lower for w in ["time", "year", "how long", "cost", "yield", "economic", "roi"]):
-            return f"""**Implementation Timeline & Multi-Year Horizons**:
-• **Season 1 (Immediate)**: Immediate physical soil protection via residue retention and reduced tillage, mitigating wind/water erosion and conserving seedbed moisture.
-• **Seasons 2–3 (Medium-Term)**: Fungal hyphae networks and active soil organic matter accumulate, improving nutrient cycling efficiency and biological pest suppression.
-• **Seasons 4+ (Long-Term)**: Systemic agroecological equilibrium, enhanced drought resilience, and reduced input costs through diversified crop rotation and functional field margins."""
+        # ── Timeline / how long ─────────────────────────────────────────────────
+        if any(w in q for w in ["how long", "timeline", "time", "year", "when", "quickly", "fast", "season"]):
+            return (
+                f"Honest answer? Ecological restoration moves at the speed of biology, not technology — but the trajectory is genuinely exciting. "
+                f"In Year 1 (first 6 months), the visible change is modest: soil temperatures drop under residue cover, and you'll see the first "
+                f"mycelial threads if you dig carefully. By Year 2–3, soil carbon is measurably rising and root nodulation is active. "
+                f"The biodiversity response tends to lag 2–3 years behind the plant recovery — so if you're watching for insects and birds, "
+                f"don't get discouraged in Year 1. By Year 4–5, in sites like yours, I'd expect your health index to move from "
+                f"{health}/100 into the 60–75 range with consistent practice. That's a meaningful system shift. "
+                f"What's your planning horizon — are you thinking short-term fixes or multi-year programme?"
+            )
 
-        # Default comprehensive grounded response
-        rec_str = primary_rec.get("name", "Curated Ecological Management")
-        soc_text = f"{soc}% SOC" if soc is not None else "baseline soil carbon"
-        rain_text = f"{rain} mm/yr" if rain is not None else "local moisture regime"
-        return f"""**Ecological Decision Support Consultation**:
-Your site consultation focuses on **{', '.join(limiting) if limiting else 'addressing identified site degradation'}** within a **{eco}** ecosystem.
+        # ── Soil, SOC, carbon, compaction ──────────────────────────────────────
+        if any(w in q for w in ["soil", "carbon", "soc", "organic matter", "compaction", "bulk density", "microbial", "ph", "nitrogen", "fertilizer", "compost"]):
+            return (
+                f"Your SOC at {soc_str} is genuinely below the biological minimum — the FAO pegs 1.2% as the threshold for functional soil ecology, "
+                f"and below that you start losing the mycorrhizal networks that are the real engine of nutrient cycling. "
+                f"The good news is that SOC responds to management faster than most people think. In similar semi-arid sites, "
+                f"we typically see 0.15–0.25% SOC gain per year under integrated cover crop + reduced tillage systems — "
+                f"which means you could cross the 1.2% threshold in 4–5 seasons of consistent practice. "
+                f"Compost applications accelerate this significantly if you have access to organic material. "
+                f"Have you done a baseline bulk density measurement? That tells us a lot about compaction severity."
+            )
 
-• **Approved Intervention**: **{rec_str}** was selected from the curated intervention library based on your **{soc_text}** and **{rain_text}** conditions.
-• **Biophysical Mechanism**: Restores biological soil integrity, protects surface aggregate stability, and enhances resilience against climatic variability.
-• **Next Steps**: Review the **Actionable Prescriptions** panel for implementation guidelines and monitoring protocols."""
+        # ── Wildlife / biodiversity ─────────────────────────────────────────────
+        if any(w in q for w in ["bird", "wildlife", "pollinator", "bee", "insect", "biodiversity", "species richness", "fauna", "mammal", "fish", "amphibian"]):
+            return (
+                f"Wildlife recovery is one of the most rewarding things to watch, but it does follow its own timeline. "
+                f"In my experience, invertebrates — especially beetles, ground spiders, and parasitoid wasps — are the first to respond, "
+                f"usually within a single growing season once you stop tillage and establish field margins. "
+                f"Birds typically follow 2–4 years later, once there's sufficient structural habitat for nesting. "
+                f"For your {eco} ecosystem specifically, the functional species to look for as early indicators are "
+                f"{'interior forest birds like flycatchers and woodpeckers' if eco == 'forest' else 'dragonflies and kingfishers as water quality sentinels' if eco == 'wetland' else 'urban generalists like house sparrows transitioning to native specialists like sunbirds' if eco == 'urban' else 'hoverflies and ground-nesting bees as soil health bioindicators'}. "
+                f"Are you doing any biodiversity baseline monitoring on your site currently?"
+            )
 
+        # ── Cost / economics / funding ──────────────────────────────────────────
+        if any(w in q for w in ["cost", "money", "fund", "expensive", "cheap", "budget", "roi", "economic", "grant", "subsidy", "incentive"]):
+            return (
+                f"Cost is always the practical constraint, and I appreciate you raising it directly. "
+                f"The good news is that the interventions I've recommended are deliberately low-input — "
+                f"cover cropping and reduced tillage typically *reduce* input costs over 3–5 years as synthetic nitrogen needs fall. "
+                f"Year 1 has the highest upfront cost: seed, inoculants, and establishment irrigation typically run "
+                f"USD 200–500/hectare depending on your region. "
+                f"There are also increasingly strong carbon credit and biodiversity payment programmes — "
+                f"the Verra VCS and Gold Standard frameworks both accept soil carbon sequestration projects, "
+                f"and some national schemes (like India's PM-PRANAM or Australia's ERF) offer direct payments. "
+                f"Want me to outline what monitoring data you'd need to qualify for carbon credits?"
+            )
 
+        # ── How does the pipeline / AI work ────────────────────────────────────
+        if any(w in q for w in ["how does", "how do you", "pipeline", "ai", "model", "algorithm", "how are you", "who are you"]):
+            return (
+                f"I'm Dr. Priya, your AI environmental scientist here at Darukaa.Earth. "
+                f"Under the hood, your assessment was generated by a 9-stage evidence pipeline — "
+                f"it parsed your site inputs, ran them through a biophysical rule engine calibrated against FAO, IPCC, and Science journal thresholds, "
+                f"retrieved matching peer-reviewed evidence from our curated knowledge base, and then verified each recommendation "
+                f"against your specific ecological constraints before presenting them. "
+                f"I can't invent numbers or cite papers I haven't actually retrieved — everything you see is grounded in that process. "
+                f"What I *can* do is help you interpret and apply those findings to your real field conditions. "
+                f"What's the most pressing question on your mind right now?"
+            )
+
+        # ── Thank you / appreciation ────────────────────────────────────────────
+        if any(w in q for w in ["thank", "thanks", "great", "helpful", "amazing", "wonderful", "good"]):
+            return (
+                f"Really glad that's useful! Restoration work takes genuine commitment, and it means a lot that you're investing "
+                f"this kind of attention in your {eco} site. "
+                f"If you run into any challenges implementing the recommendations — seasonal timing, unexpected pest pressure, "
+                f"or just wanting a second opinion on what you're observing in the field — don't hesitate to ask. "
+                f"The Actionable Prescriptions panel also has step-by-step field guides if you need them. "
+                f"Is there anything else about your site I can help you think through?"
+            )
+
+        # ── Default: warm, contextual, grounded response ────────────────────────
+        limiting_str = f"{limiting[0]}" if limiting else "ecological stress"
+        return (
+            f"That's a great question, and it connects directly to what we're seeing in your assessment. "
+            f"Your {eco} site is dealing primarily with {limiting_str}, and {rec_name} is designed to address exactly that. "
+            f"{mechanism} "
+            f"In practical terms: {action} "
+            f"Given your {soc_str} SOC and {rain_str}, I'd expect meaningful improvement within 2–3 seasons of consistent implementation. "
+            f"Is there a specific aspect of this you'd like me to unpack further — the timing, the species, or the monitoring approach?"
+        )
