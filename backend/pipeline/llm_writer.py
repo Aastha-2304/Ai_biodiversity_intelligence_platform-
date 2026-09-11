@@ -124,7 +124,7 @@ class ScientificWriter:
         biome_val = profile.get("biome") or "regional"
         crop_val = profile.get("current_crop") or profile.get("land_use_type") or f"{eco_type} site"
         limiting = rule_eval.get("primary_limiting_factors", [])
-        health = rule_eval.get("system_health_index") or 37.5
+        health = rule_eval.get("system_health_index") if rule_eval.get("system_health_index") is not None else 37.5
         pollution = profile.get("pollution_level") or "Unspecified"
         water_qual = profile.get("water_quality") or "Unspecified"
         water_lvl = profile.get("water_level") or "Unspecified"
@@ -143,7 +143,7 @@ class ScientificWriter:
                 f"• **Urban Environment**: {crop_val.title()} ({biome_val.title()} Matrix)",
                 f"• **Pollutant & Runoff Status**: **{pollution.upper()}** — Stormwater runoff with suspended solids and trace metals",
                 f"• **Surrounding Green Canopy**: Low vegetative buffer / High impervious ground cover",
-                f"• **Diagnostic Health Index**: **{health} / 100** ({'Critical Stress' if health < 40 else 'Moderate Vulnerability'})",
+                f"• **Diagnostic Health Index**: **{health} / 100** ({'Critical Stress' if int(health or 0) < 40 else 'Moderate Vulnerability'})",
                 f"• **Diagnosed Limiting Factors**: {'; '.join(limiting) if limiting else 'Urban stormwater runoff and lack of multi-tier canopy cover'}",
                 "",
                 "####  2. Biophysical Mechanism & Scientific Diagnosis",
@@ -156,7 +156,7 @@ class ScientificWriter:
                 f"• **Wetland System**: {crop_val.title()} ({biome_val.title()} Zone)",
                 f"• **Water Quality & Trophic State**: **{water_qual.upper()}** (Pollution Level: {pollution})",
                 f"• **Hydrological Stability**: **{water_lvl.title()}** — Seasonal drawdown risk affecting littoral fringes",
-                f"• **Diagnostic Health Index**: **{health} / 100** ({'Severe Eutrophication' if health < 40 else 'Moderate Vulnerability'})",
+                f"• **Diagnostic Health Index**: **{health} / 100** ({'Severe Eutrophication' if int(health or 0) < 40 else 'Moderate Vulnerability'})",
                 f"• **Diagnosed Limiting Factors**: {'; '.join(limiting) if limiting else 'Agricultural nutrient runoff and littoral habitat desiccation'}",
                 "",
                 "####  2. Biophysical Mechanism & Scientific Diagnosis",
@@ -169,7 +169,7 @@ class ScientificWriter:
                 f"• **Forest Landscape**: {crop_val.title()} ({biome_val.title()} Matrix)",
                 f"• **Canopy Cover Density**: **{canopy_val or 'Severely Depleted'}** (Deforestation Pressure: {deforest})",
                 f"• **Landscape Connectivity**: **{frag}** — Severe perimeter edge desiccation",
-                f"• **Diagnostic Health Index**: **{health} / 100** ({'Critical Fragmentation' if health < 40 else 'Moderate Vulnerability'})",
+                f"• **Diagnostic Health Index**: **{health} / 100** ({'Critical Fragmentation' if int(health or 0) < 40 else 'Moderate Vulnerability'})",
                 f"• **Diagnosed Limiting Factors**: {'; '.join(limiting) if limiting else 'Canopy deforestation and arrested natural regeneration'}",
                 "",
                 "####  2. Biophysical Mechanism & Scientific Diagnosis",
@@ -182,7 +182,7 @@ class ScientificWriter:
                 f"• **Cropping / Agroforestry System**: {crop_val.title()} ({biome_val.title()})",
                 f"• **Annual Precipitation**: **{rain_val} mm/yr** — High-energy storm regime",
                 f"• **Soil Organic Carbon (SOC)**: **{soc_val or 'Moderate'}%**",
-                f"• **Diagnostic Health Index**: **{health} / 100** ({'High Leaching Risk' if health < 50 else 'Moderate Stability'})",
+                f"• **Diagnostic Health Index**: **{health} / 100** ({'High Leaching Risk' if int(health or 0) < 50 else 'Moderate Stability'})",
                 f"• **Diagnosed Limiting Factors**: {'; '.join(limiting) if limiting else 'Topsoil erosion and subsoil nutrient leaching'}",
                 "",
                 "####  2. Biophysical Mechanism & Scientific Diagnosis",
@@ -196,7 +196,7 @@ class ScientificWriter:
                 f"• **Cropping System**: {crop_val.title()} — Continuous single-species cereal monoculture",
                 f"• **Soil Organic Carbon (SOC)**: **{soc_val}%** (Critical Deficit; FAO benchmark threshold is ≥ 1.20%)",
                 f"• **Precipitation & Climate**: **{rain_val} mm/yr** — Semi-arid regime with high seasonal drought risk",
-                f"• **Diagnostic Health Index**: **{health} / 100** ({'Severe Degradation' if health < 40 else 'Moderate Vulnerability'})",
+                f"• **Diagnostic Health Index**: **{health} / 100** ({'Severe Degradation' if int(health or 0) < 40 else 'Moderate Vulnerability'})",
                 f"• **Diagnosed Limiting Factors**: {'; '.join(limiting) if limiting else 'Monoculture depletion and critical soil carbon deficit'}",
                 "",
                 "####  2. Biophysical Mechanism & Scientific Diagnosis",

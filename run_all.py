@@ -74,7 +74,8 @@ def main():
     uvicorn_cmd = [
         sys.executable, "-m", "uvicorn", "backend.main:app",
         "--host", "0.0.0.0",
-        "--port", "8000"
+        "--port", "8000",
+        "--reload"
     ]
     
     try:
@@ -84,10 +85,12 @@ def main():
         print("\n Shutting down unified platform...")
     finally:
         try:
-            streamlit_proc.terminate()
-            streamlit_proc.wait(timeout=2)
+            if sys.platform == "win32":
+                subprocess.run(f"taskkill /F /T /PID {streamlit_proc.pid}", shell=True, capture_output=True)
+            else:
+                streamlit_proc.terminate()
         except Exception:
-            streamlit_proc.kill()
+            pass
         print(" All processes terminated cleanly.")
 
 if __name__ == "__main__":

@@ -7,6 +7,7 @@ Run with: streamlit run app.py
 import streamlit as st
 import streamlit.components.v1 as components
 import json
+import io
 import sys
 import os
 import textwrap
@@ -664,20 +665,147 @@ with st.sidebar:
         st.rerun()
 
     if st.session_state.last_result:
-        case_json = json.dumps({
-            "session_id": st.session_state.session_id,
-            "case_file": st.session_state.last_result.get("case_file"),
-            "rule_metrics": st.session_state.last_result.get("rule_metrics"),
-            "recommendations": st.session_state.last_result.get("recommendations"),
-            "chat_history": st.session_state.followup_chat
-        }, indent=2)
-        st.download_button(
-            "📥 Export Full Case Audit (JSON)",
-            data=case_json,
-            file_name=f"darukaa-audit-{st.session_state.session_id}.json",
-            mime="application/json",
-            use_container_width=True
-        )
+        try:
+            from fpdf import FPDF
+            _res = st.session_state.last_result
+            _prof = (_res.get("case_file") or {}).get("profile", {})
+            _rm   = _res.get("rule_metrics") or {}
+            _recs = _res.get("recommendations") or []
+
+            def _clean_text(text):
+                if text is None:
+                    return ""
+                t = str(text)
+                replacements = {
+                    "\u2014": " - ",
+                    "\u2013": "-",
+                    "\u2018": "'",
+                    "\u2019": "'",
+                    "\u201c": '"',
+                    "\u201d": '"',
+                    "\u2022": "*",
+                    "\u2026": "...",
+                    "↑": "^",
+                    "↓": "v",
+                    "→": "->",
+                    "←": "<-",
+                    "≥": ">=",
+                    "≤": "<=",
+                    "±": "+/-",
+                    "°": " deg ",
+                    "×": "x",
+                    "µ": "u",
+                }
+                for orig, rep in replacements.items():
+                    t = t.replace(orig, rep)
+                return t.encode("latin-1", "replace").decode("latin-1")
+
+            pdf = FPDF()
+            pdf.set_auto_page_break(auto=True, margin=15)
+            pdf.add_page()
+
+            # ── Header ──────────────────────────────────────────────────────
+            pdf.set_font("Helvetica", "B", 18)
+            pdf.set_text_color(56, 36, 23)
+            pdf.cell(0, 12, "Darukaa.Earth - Ecological Audit Report", align="C")
+            pdf.ln(12)
+            pdf.set_font("Helvetica", "", 9)
+            pdf.set_text_color(100, 100, 100)
+            pdf.cell(0, 6, _clean_text(f"Session: {st.session_state.session_id}   |   Generated: {datetime.datetime.now().strftime('%d %b %Y %H:%M')}"), align="C")
+            pdf.ln(6)
+            pdf.ln(4)
+            pdf.set_draw_color(217, 164, 65)
+            pdf.set_line_width(0.8)
+            pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+            pdf.ln(5)
+
+            def _section(title):
+                pdf.set_font("Helvetica", "B", 12)
+                pdf.set_text_color(56, 36, 23)
+                pdf.cell(0, 8, _clean_text(title))
+                pdf.ln(8)
+                pdf.set_draw_color(200, 180, 150)
+                pdf.set_line_width(0.3)
+                pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+                pdf.ln(2)
+
+            def _row(label, value):
+                pdf.set_font("Helvetica", "B", 9)
+                pdf.set_text_color(80, 60, 40)
+                y_start = pdf.get_y()
+                pdf.set_xy(10, y_start)
+                pdf.cell(55, 6, _clean_text(label) + ":")
+                
+                pdf.set_font("Helvetica", "", 9)
+                pdf.set_text_color(40, 40, 40)
+                val_str = str(value) if value not in (None, "") else " - "
+                pdf.set_xy(10 + 55, y_start)
+                pdf.multi_cell(0, 6, _clean_text(val_str))
+
+            def _body(text):
+                pdf.set_font("Helvetica", "", 9)
+                pdf.set_text_color(40, 40, 40)
+                for line in str(text).splitlines():
+                    pdf.multi_cell(0, 5, _clean_text(line.strip()) or " ")
+
+            # ── Site Profile ─────────────────────────────────────────────────
+            _section("1. Site Profile")
+            _row("Ecosystem Type",   _prof.get("ecosystem_type") or _rm.get("ecosystem_type"))
+            _row("Biome",            _prof.get("biome"))
+            _row("Current Land Use", _prof.get("current_crop") or _prof.get("land_use_type"))
+            _row("SOC (%)",          _prof.get("soc_percent"))
+            _row("Rainfall (mm/yr)", _prof.get("rainfall_mm"))
+            _row("Soil Texture",     _prof.get("soil_texture"))
+            _row("Location",         _prof.get("location"))
+            pdf.ln(3)
+
+            # ── Diagnostic Metrics ────────────────────────────────────────────
+            _section("2. Diagnostic Health Metrics")
+            _row("System Health Index", f"{_rm.get('system_health_index') or '—'} / 100")
+            lf = _rm.get("primary_limiting_factors") or []
+            _row("Limiting Factors",    "; ".join(lf) if lf else "—")
+            _row("Diagnostic Hypothesis", _rm.get("diagnostic_hypothesis"))
+            pdf.ln(3)
+
+            # ── Recommendations ───────────────────────────────────────────────
+            _section("3. Recommended Interventions")
+            for i, rec in enumerate(_recs, 1):
+                pdf.set_font("Helvetica", "B", 10)
+                pdf.set_text_color(56, 36, 23)
+                rec_name = _clean_text(rec.get('name', 'Intervention'))
+                pdf.cell(0, 7, f"{i}. {rec_name}", ln=True)
+                _row("  Action",    rec.get("action"))
+                _row("  Mechanism", rec.get("mechanism"))
+                to = "; ".join(rec.get("trade_offs") or [])
+                if to:
+                    _row("  Trade-offs", to)
+                ev = ", ".join(rec.get("evidence_ids") or [])
+                if ev:
+                    _row("  Evidence",   ev)
+                pdf.ln(2)
+
+            # ── Chat History ──────────────────────────────────────────────────
+            if st.session_state.followup_chat:
+                _section("4. AI Scientist Q&A History")
+                for turn in st.session_state.followup_chat:
+                    role = "Practitioner" if turn["role"] == "user" else "AI Scientist"
+                    pdf.set_font("Helvetica", "B", 9)
+                    pdf.set_text_color(80, 60, 40)
+                    header_label = _clean_text(f"{role} [{turn.get('time', '')}]:")
+                    pdf.cell(0, 6, header_label, ln=True)
+                    _body(turn.get("text", ""))
+                    pdf.ln(2)
+
+            pdf_bytes = bytes(pdf.output())
+            st.download_button(
+                "📥 Export Full Case Audit (PDF)",
+                data=pdf_bytes,
+                file_name=f"darukaa-audit-{st.session_state.session_id}.pdf",
+                mime="application/pdf",
+                use_container_width=True
+            )
+        except ImportError:
+            st.warning("PDF library not installed. Run: pip install fpdf2")
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -971,88 +1099,7 @@ if active_panel == "🔬 AI Scientist & Assessment":
                     st.session_state.nav_index = 5
                     st.rerun()
 
-        # 4. Interactive Follow-Up Chatbot (Answers queries strictly against assessment & input)
-        st.markdown("---")
-        st.markdown("### 💬 Interactive AI Scientist Chatbot (Follow-up Questions & Doubts)")
-        st.markdown("Ask any questions or clarify doubts regarding your site analysis, recommended practices, planting geometry, species selection, soil carbon trajectories, or watering regimes.")
 
-        # OpenAI API Key Connection
-        has_openai = bool(st.session_state.get("openai_api_key") or os.environ.get("OPENAI_API_KEY"))
-        with st.expander("🔑 Connect OpenAI API Key (For Live GPT-4o Intelligence)", expanded=not has_openai):
-            k_col1, k_col2 = st.columns([3, 1])
-            curr_openai_key = st.session_state.get("openai_api_key") or os.environ.get("OPENAI_API_KEY", "")
-            entered_k = k_col1.text_input(
-                "OpenAI API Key (Stored safely in local session)",
-                value=curr_openai_key,
-                type="password",
-                placeholder="sk-proj-...",
-                help="Connect your OpenAI API key to ask questions answered by live GPT-4o-mini strictly grounded in your site telemetry.",
-                key="openai_key_input_field"
-            )
-            if k_col2.button("💾 Save Key", use_container_width=True, key="btn_save_openai_key"):
-                clean_k = entered_k.strip()
-                st.session_state.openai_api_key = clean_k
-                if clean_k:
-                    os.environ["OPENAI_API_KEY"] = clean_k
-                    st.success("✅ OpenAI API key connected!")
-                else:
-                    os.environ.pop("OPENAI_API_KEY", None)
-                    st.info("Cleared OpenAI API key. Grounded deterministic engine active.")
-                st.rerun()
-
-            if st.session_state.get("openai_api_key") or os.environ.get("OPENAI_API_KEY"):
-                st.caption("🟢 **Status:** Connected to OpenAI (Model: `gpt-4o-mini`). Your doubts will be answered by live GPT-4o-mini strictly grounded to your site profile.")
-            else:
-                st.caption("ℹ️ **Status:** No OpenAI key connected. The built-in deterministic scientific reasoning engine is active and ready to answer your questions.")
-
-        # Display conversation history
-        if st.session_state.followup_chat:
-            for chat_turn in st.session_state.followup_chat:
-                if chat_turn["role"] == "user":
-                    st.markdown(f"""
-                    <div class="msg-user">
-                        <div class="msg-meta"><span class="msg-role">👤 Practitioner / User Doubt</span> &nbsp; {chat_turn.get('time','')}</div>
-                        {chat_turn['text']}
-                    </div>
-                    """, unsafe_allow_html=True)
-                else:
-                    st.markdown(f"""
-                    <div class="msg-system">
-                        <div class="msg-meta"><span class="msg-role">🌍 Darukaa AI Environmental Scientist</span> &nbsp; {chat_turn.get('time','')}</div>
-                        {chat_turn['text']}
-                    </div>
-                    """, unsafe_allow_html=True)
-        else:
-            st.caption("No follow-up questions asked yet. Ask a question below (e.g. *'What tree spacing should I use?'*, *'Can I substitute chickpea with another legume?'*, *'How much water is saved?'*).")
-
-        # Chat Input Box
-        user_doubt = st.chat_input("Ask a doubt or question about this assessment (strictly answered against your input)...")
-        if user_doubt:
-            d_time = datetime.datetime.now().strftime("%H:%M")
-            st.session_state.followup_chat.append({"role": "user", "text": user_doubt, "time": d_time})
-            AuditDatabase.save_chat_message(st.session_state.session_id, "user", user_doubt, "doubt")
-
-            # Call bounded follower
-            prof = res.get("case_file", {}).get("profile", {})
-            rm = res.get("rule_metrics", {})
-            recs = res.get("recommendations", [])
-            evs = res.get("retrieved_evidence", [])
-            active_openai_key = st.session_state.get("openai_api_key") or os.environ.get("OPENAI_API_KEY", "")
-
-            with st.spinner("🔬 Formulating scientifically grounded answer against your site profile..."):
-                answer = ScientificWriter.answer_assessment_followup(
-                    user_question=user_doubt,
-                    profile=prof,
-                    rule_eval=rm,
-                    recommendations=recs,
-                    retrieved_evidence=evs,
-                    chat_history=st.session_state.followup_chat,
-                    openai_api_key=active_openai_key
-                )
-
-            st.session_state.followup_chat.append({"role": "assistant", "text": answer, "time": d_time})
-            AuditDatabase.save_chat_message(st.session_state.session_id, "assistant", answer, "answer")
-            st.rerun()
 
 
 elif active_panel == "📊 Intelligence Dashboard":
