@@ -719,34 +719,38 @@ with st.sidebar:
             pdf.line(10, pdf.get_y(), 200, pdf.get_y())
             pdf.ln(5)
 
+            content_w = pdf.epw  # Effective page width (respects margins)
+
             def _section(title):
+                pdf.set_x(10)
                 pdf.set_font("Helvetica", "B", 12)
                 pdf.set_text_color(56, 36, 23)
-                pdf.cell(0, 8, _clean_text(title))
-                pdf.ln(8)
+                pdf.cell(content_w, 8, _clean_text(title), ln=True)
                 pdf.set_draw_color(200, 180, 150)
                 pdf.set_line_width(0.3)
-                pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+                pdf.line(10, pdf.get_y(), 10 + content_w, pdf.get_y())
                 pdf.ln(2)
 
             def _row(label, value):
+                pdf.set_x(10)
                 pdf.set_font("Helvetica", "B", 9)
                 pdf.set_text_color(80, 60, 40)
-                y_start = pdf.get_y()
-                pdf.set_xy(10, y_start)
-                pdf.cell(55, 6, _clean_text(label) + ":")
-                
-                pdf.set_font("Helvetica", "", 9)
-                pdf.set_text_color(40, 40, 40)
+                label_text = _clean_text(label) + ": "
                 val_str = str(value) if value not in (None, "") else " - "
-                pdf.set_xy(10 + 55, y_start)
-                pdf.multi_cell(0, 6, _clean_text(val_str))
+                combined = label_text + _clean_text(val_str)
+                pdf.multi_cell(content_w, 5, combined)
+                pdf.ln(1)
 
             def _body(text):
                 pdf.set_font("Helvetica", "", 9)
                 pdf.set_text_color(40, 40, 40)
                 for line in str(text).splitlines():
-                    pdf.multi_cell(0, 5, _clean_text(line.strip()) or " ")
+                    cleaned_line = _clean_text(line.strip())
+                    if cleaned_line:
+                        pdf.set_x(10)
+                        pdf.multi_cell(content_w, 5, cleaned_line)
+                    else:
+                        pdf.ln(2)
 
             # ── Site Profile ─────────────────────────────────────────────────
             _section("1. Site Profile")
@@ -770,10 +774,11 @@ with st.sidebar:
             # ── Recommendations ───────────────────────────────────────────────
             _section("3. Recommended Interventions")
             for i, rec in enumerate(_recs, 1):
+                pdf.set_x(10)
                 pdf.set_font("Helvetica", "B", 10)
                 pdf.set_text_color(56, 36, 23)
                 rec_name = _clean_text(rec.get('name', 'Intervention'))
-                pdf.cell(0, 7, f"{i}. {rec_name}", ln=True)
+                pdf.cell(content_w, 7, f"{i}. {rec_name}", ln=True)
                 _row("  Action",    rec.get("action"))
                 _row("  Mechanism", rec.get("mechanism"))
                 to = "; ".join(rec.get("trade_offs") or [])
@@ -789,10 +794,11 @@ with st.sidebar:
                 _section("4. AI Scientist Q&A History")
                 for turn in st.session_state.followup_chat:
                     role = "Practitioner" if turn["role"] == "user" else "AI Scientist"
+                    pdf.set_x(10)
                     pdf.set_font("Helvetica", "B", 9)
                     pdf.set_text_color(80, 60, 40)
                     header_label = _clean_text(f"{role} [{turn.get('time', '')}]:")
-                    pdf.cell(0, 6, header_label, ln=True)
+                    pdf.cell(content_w, 6, header_label, ln=True)
                     _body(turn.get("text", ""))
                     pdf.ln(2)
 
